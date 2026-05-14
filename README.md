@@ -1,104 +1,163 @@
 # Dynamic Thermal Control Simulation for Edge AI Processor
 
-This project simulates the dynamic thermal control of an Edge AI processor using LQR and MPC controllers. The simulation generates PDF plots for a university semester paper on control theory.
+This project simulates dynamic thermal control of an Edge AI processor using a 2-state thermal model and compares no control, LQR, and MPC strategies.
 
 ## Overview
 
-The system models the thermal behavior of an Edge AI processor with a nonlinear difference equation. Two control strategies are implemented and compared:
+The model tracks two thermal states:
 
-- **LQR (Linear Quadratic Regulator)**: Optimal feedback control with input saturation
-- **MPC (Model Predictive Control)**: Constrained optimization over a prediction horizon
+- **Core temperature** `T_c`
+- **Heatsink temperature** `T_h`
+
+The simulation loop uses the nonlinear thermal equations, while LQR and MPC are designed around a linearized deviation model. The script generates vector PDF plots suitable for a university semester paper on control theory.
 
 ## Mathematical Model
 
-The thermal dynamics are described by the nonlinear difference equation:
+The state vector is:
 
+```text
+x = [T_c, T_h]
 ```
-T_{k+1} = T_k * (1 - dt/(R_th * C_th)) + (dt * kappa / C_th) * f_k^3 + (dt / (R_th * C_th)) * T_amb + (dt / C_th) * P_ext
+
+The nonlinear Euler update equations are:
+
+```text
+T_c[k+1] = T_c[k] + (dt / C_c) * (kappa * f[k]^3 + P_ext)
+           - (dt / (R_c * C_c)) * (T_c[k] - T_h[k])
+
+T_h[k+1] = T_h[k] + (dt / (R_c * C_h)) * (T_c[k] - T_h[k])
+           - (dt / (R_h * C_h)) * (T_h[k] - T_amb)
 ```
 
-### Physical Parameters
+## Parameters
 
-- `R_th = 5.0` - Thermal resistance [K/W]
-- `C_th = 2.0` - Thermal capacitance [J/K]
-- `dt = 0.1` - Sampling time [s]
-- `kappa = 0.8` - Power/frequency constant
-- `T_amb_nom = 25.0` - Nominal ambient temperature [°C]
-- `P_ext_nom = 0.0` - Nominal external power [W]
+- `dt = 0.1` s
+- `C_c = 0.5`
+- `C_h = 5.0`
+- `R_c = 1.5`
+- `R_h = 3.5`
+- `kappa = 0.8`
+- `T_amb_nom = 25.0` °C
+- `P_ext_nom = 0.0` W
 
-### Operating Point
+## Operating Point
 
-- `T_target = 60.0` - Target temperature [°C]
-- `f_target = 2.06` - Equilibrium frequency [GHz]
+- `T_c_star = 60.0` °C
+- `T_h_star = 49.5` °C
+- `u_star = 2.0606` GHz
+- `x_star = [60.0, 49.5]`
 
-### Linearized Model
+## Linearized Deviation Model
 
-Deviations from the operating point: `dx = T - T_target`, `du = f - f_target`
+The controllers use deviations:
 
+```text
+dx = x - x_star
+du = f - u_star
 ```
-A = 0.99
-B = 0.51
+
+```text
+A = [[0.8667, 0.1333],
+     [0.0133, 0.9810]]
+
+B = [[2.038],
+     [0.0]]
 ```
+
+Disturbance feedforward in the MPC uses:
+
+```text
+G_dist = [[0.0, dt / C_c],
+          [dt / (R_h * C_h), 0.0]]
+```
+
+with disturbance vector:
+
+```text
+dv = [T_amb - 25.0, P_ext - 0.0]
+```
+
+## Controller Design
+
+### LQR Controller
+
+- `Q = diag([1.0, 0.0])`
+- `R = [[100.0]]`
+- Control law:
+
+```text
+f_k = u_star - K @ (x_k - x_star)
+```
+
+- Frequency is clipped to `[0.5, 2.4]` GHz.
+
+### MPC Controller
+
+- Prediction horizon: `N_p = 10`
+- Decision variables:
+  - `dx = cp.Variable((2, N_p + 1))`
+  - `du = cp.Variable((1, N_p))`
+- Uses disturbance feedforward:
+
+```text
+dx[:, i+1] = A @ dx[:, i] + B @ du[:, i] + G_dist @ dv
+```
+
+- Constraints:
+  - Input: `0.5 <= u_star + du <= 2.4`
+  - Core temperature only: `25.0 <= x_star[0] + dx[0] <= 85.0`
+- Solver: OSQP through CVXPY
+- If the MPC solve is not optimal, the script prints a warning and falls back to LQR.
+
+## Simulation Scenarios
+
+### Scenario A: Stabilization without Disturbances
+
+- Initial state: `x_0 = [75.0, 60.0]`
+- Constant ambient temperature: `25.0` °C
+- External power: `0.0` W
+- Compares no control, LQR, and MPC.
+
+### Scenario B: Stabilization with Disturbances
+
+- Initial state: `x_0 = [60.0, 49.5]`
+- Disturbances:
+  - `t = 0-15s`: `T_amb = 25.0` °C, `P_ext = 0.0` W
+  - `t = 15s+`: `P_ext = 3.0` W
+  - `t = 35s+`: `T_amb = 35.0` °C
+- Compares no control, LQR, and MPC.
 
 ## Installation
 
-1. Create a virtual environment:
+Create and activate a virtual environment:
+
 ```bash
 python -m venv venv
-venv\Scripts\activate  # Windows
+venv\Scripts\activate
 ```
 
-2. Install dependencies:
+Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-Run the simulation script:
+Run the simulation:
 
 ```bash
 python simulate_control.py
 ```
 
-This will generate two PDF plots:
-- `simulace_scenar_a.pdf` - Stabilization without disturbances
-- `simulace_scenar_b.pdf` - Stabilization with disturbances
+This generates:
 
-## Simulation Scenarios
-
-### Scenario A: Stabilization without Disturbances
-- Initial temperature: 75°C (overheated state)
-- Constant ambient temperature: 25°C
-- No external power disturbances
-- Compares: No control, LQR, and MPC
-
-### Scenario B: Stabilization with Disturbances
-- Initial temperature: 60°C (steady state)
-- Time-varying disturbances:
-  - t = 0-15s: T_amb = 25°C, P_ext = 0W
-  - t = 15s+: P_ext steps to 3W (increased computational load)
-  - t = 35s+: T_amb steps to 35°C (hotter environment)
-- Compares: No control, LQR, and MPC
-
-## Controller Design
-
-### LQR Controller
-- Weights: Q = 1, R = 10
-- Control law: `f_k = f_target - K * (T_k - T_target)`
-- Input saturation: [0.5, 2.4] GHz
-
-### MPC Controller
-- Prediction horizon: N_p = 10
-- Weights: Q = 1, R = 10
-- Terminal cost: Solution of Riccati equation from LQR
-- Constraints:
-  - Input: 0.5 ≤ f_k ≤ 2.4 GHz
-  - State: 25.0 ≤ T_k ≤ 85.0 °C
-- Solver: OSQP (via cvxpy)
+- `simulace_scenar_a.pdf`
+- `simulace_scenar_b.pdf`
 
 ## Output Plots
 
-Each scenario generates a PDF with two subplots:
-1. **Top**: Temperature T(t) over time with target (60°C) and critical limit (85°C)
-2. **Bottom**: Frequency f(t) over time with maximum limit (2.4 GHz)
+Each PDF contains two vertical subplots:
+
+1. **Top**: Core temperature over time with target `60°C` and critical limit `85°C`
+2. **Bottom**: Frequency over time with maximum limit `2.4 GHz`
