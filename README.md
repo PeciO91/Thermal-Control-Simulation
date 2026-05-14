@@ -102,16 +102,3 @@ This will generate two PDF plots:
 Each scenario generates a PDF with two subplots:
 1. **Top**: Temperature T(t) over time with target (60°C) and critical limit (85°C)
 2. **Bottom**: Frequency f(t) over time with maximum limit (2.4 GHz)
-
-## Dependencies
-
-- numpy==1.26.4
-- scipy==1.13.0
-- matplotlib==3.8.4
-- control==0.10.0
-- cvxpy==1.4.2
-- osqp==0.6.3
-
-## License
-
-This project is created for educational purposes for a university control theory course.
