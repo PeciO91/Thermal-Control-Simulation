@@ -1,0 +1,6 @@
+numpy==1.26.4
+scipy==1.13.0
+matplotlib==3.8.4
+control==0.10.0
+cvxpy==1.4.2
+osqp==0.6.3
