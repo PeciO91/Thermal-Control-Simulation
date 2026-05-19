@@ -159,5 +159,8 @@ This generates:
 
 Each PDF contains two vertical subplots:
 
-1. **Top**: Core temperature over time with target `60°C` and critical limit `85°C`
+1. **Top**: Core and heatsink temperatures over time
+   - Solid lines show core temperature `T_c`
+   - Dotted lines show heatsink temperature `T_h`
+   - The target core temperature `60°C` and critical core limit `85°C` are shown as horizontal reference lines
 2. **Bottom**: Frequency over time with maximum limit `2.4 GHz`
