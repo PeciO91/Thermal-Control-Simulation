@@ -248,7 +248,9 @@ def scenario_a():
     t_lqr, T_c_lqr, T_h_lqr, f_lqr = simulate(x_0, T_amb_func, P_ext_func, 'lqr')
     t_mpc, T_c_mpc, T_h_mpc, f_mpc = simulate(x_0, T_amb_func, P_ext_func, 'mpc')
     
-    return (t_none, T_c_none, f_none, t_lqr, T_c_lqr, f_lqr, t_mpc, T_c_mpc, f_mpc)
+    return (t_none, T_c_none, T_h_none, f_none,
+            t_lqr, T_c_lqr, T_h_lqr, f_lqr,
+            t_mpc, T_c_mpc, T_h_mpc, f_mpc)
 
 # =============================================================================
 # 7. Scenario B: Stabilization with Disturbances
@@ -278,7 +280,9 @@ def scenario_b():
     t_lqr, T_c_lqr, T_h_lqr, f_lqr = simulate(x_0, T_amb_func, P_ext_func, 'lqr')
     t_mpc, T_c_mpc, T_h_mpc, f_mpc = simulate(x_0, T_amb_func, P_ext_func, 'mpc')
     
-    return (t_none, T_c_none, f_none, t_lqr, T_c_lqr, f_lqr, t_mpc, T_c_mpc, f_mpc)
+    return (t_none, T_c_none, T_h_none, f_none,
+            t_lqr, T_c_lqr, T_h_lqr, f_lqr,
+            t_mpc, T_c_mpc, T_h_mpc, f_mpc)
 
 # =============================================================================
 # 8. PDF Plot Generation
@@ -288,11 +292,13 @@ def plot_scenario(results, filename, title):
     Generate PDF plot for a scenario.
     
     Parameters:
-    results : Tuple of (t_none, T_c_none, f_none, t_lqr, T_c_lqr, f_lqr, t_mpc, T_c_mpc, f_mpc)
+    results : Tuple of simulation outputs for no control, LQR, and MPC
     filename : Output PDF filename
     title : Figure title
     """
-    t_none, T_c_none, f_none, t_lqr, T_c_lqr, f_lqr, t_mpc, T_c_mpc, f_mpc = results
+    (t_none, T_c_none, T_h_none, f_none,
+     t_lqr, T_c_lqr, T_h_lqr, f_lqr,
+     t_mpc, T_c_mpc, T_h_mpc, f_mpc) = results
     
     # Create figure with 2 subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -301,9 +307,12 @@ def plot_scenario(results, filename, title):
     ax1.plot(t_none, T_c_none, 'k-', linewidth=2, label='No control (f=2.06 GHz)')
     ax1.plot(t_lqr, T_c_lqr, 'b-', linewidth=2, label='LQR')
     ax1.plot(t_mpc, T_c_mpc, 'r-', linewidth=2, label='MPC')
+    ax1.plot(t_none, T_h_none, 'k:', linewidth=2, label='No control Heatsink')
+    ax1.plot(t_lqr, T_h_lqr, 'b:', linewidth=2, label='LQR Heatsink')
+    ax1.plot(t_mpc, T_h_mpc, 'r:', linewidth=2, label='MPC Heatsink')
     ax1.axhline(y=T_c_star, color='g', linestyle='--', linewidth=1.5, label='Target (60°C)')
     ax1.axhline(y=T_c_max, color='r', linestyle='--', linewidth=1.5, label='Critical limit (85°C)')
-    ax1.set_ylabel('Core Temperature [°C]', fontsize=12)
+    ax1.set_ylabel('Temperature [°C]', fontsize=12)
     ax1.set_title(title, fontsize=14, fontweight='bold')
     ax1.legend(loc='best', fontsize=10)
     ax1.grid(True, alpha=0.3)
